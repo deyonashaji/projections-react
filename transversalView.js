@@ -42,6 +42,8 @@ const TransversalView = ({
   drawingRect,//my
   selectedShape,//my
   setDrawingRect, //my
+  HUThreshold,//floodfill
+  floodFillMode,//floodfill
 }) => {
   
   const originalHeight = images.length;
@@ -97,6 +99,9 @@ const TransversalView = ({
   const [shapeEnd, setShapeEnd] = useState(null);
   const shapeStartRef = useRef(null);
   const shapeEndRef = useRef(null);
+
+  //const [floodFillMode, setFloodFillMode] = useState(false);//floodfill
+
   
   // Store the drawn shape
   const [drawnShape, setDrawnShape] = useState(null);
@@ -124,16 +129,26 @@ const TransversalView = ({
 
 
 
-const getCircleResizeHandles = (shape) => {
-  const r = shape.circleRadius;
-  const cx = shape.x;
-  const cy = shape.y;
+// const getCircleResizeHandles = (shape) => {
+//   const r = shape.circleRadius;
+//   const cx = shape.x;
+//   const cy = shape.y;
 
+//   return [
+//     { x: cx - r, y: cy, position: 'left' },
+//     { x: cx + r, y: cy, position: 'right' },
+//     { x: cx, y: cy - r, position: 'top' },
+//     { x: cx, y: cy + r, position: 'bottom' },
+//   ];
+// };
+
+const getCircleResizeHandles = (shape) => {
+  const { x, y, circleRadius } = shape;
   return [
-    { x: cx - r, y: cy, position: 'left' },
-    { x: cx + r, y: cy, position: 'right' },
-    { x: cx, y: cy - r, position: 'top' },
-    { x: cx, y: cy + r, position: 'bottom' },
+    { x: x - circleRadius * Math.SQRT1_2, y: y - circleRadius * Math.SQRT1_2, position: 'nw' }, // Top-left
+    { x: x + circleRadius * Math.SQRT1_2, y: y - circleRadius * Math.SQRT1_2, position: 'ne' }, // Top-right
+    { x: x - circleRadius * Math.SQRT1_2, y: y + circleRadius * Math.SQRT1_2, position: 'sw' }, // Bottom-left
+    { x: x + circleRadius * Math.SQRT1_2, y: y + circleRadius * Math.SQRT1_2, position: 'se' }, // Bottom-right
   ];
 };
 
@@ -1129,22 +1144,41 @@ if (resizeHandle && drawnShape) {
     if (resizeHandle.includes('bottom')) {
       newShape.h = mouseY - newShape.y;
     }
-  }else if (newShape.type === 'ellipse') {
-  const dx = mouseX - newShape.x;
-  const dy = mouseY - newShape.y;
+//   }else if (newShape.type === 'ellipse') {
+//   const dx = mouseX - newShape.x;
+//   const dy = mouseY - newShape.y;
 
-  let newRadius;
-  if (resizeHandle === 'left' || resizeHandle === 'right') {
-    newRadius = Math.abs(dx);
-  } else if (resizeHandle === 'top' || resizeHandle === 'bottom') {
-    newRadius = Math.abs(dy);
-  }
+//   let newRadius;
+//   if (resizeHandle === 'left' || resizeHandle === 'right') {
+//     newRadius = Math.abs(dx);
+//   } else if (resizeHandle === 'top' || resizeHandle === 'bottom') {
+//     newRadius = Math.abs(dy);
+//   }
 
-  newShape.circleRadius = newRadius;
-  newShape.rx = newRadius * 0.7;
-  newShape.ry = newRadius * 0.4;
+//   newShape.circleRadius = newRadius;
+//   newShape.rx = newRadius * 0.7;
+//   newShape.ry = newRadius * 0.4;
+// }
+   } else if (newShape.type === 'ellipse') {
+  const startX = shapeStartRef.current.x;
+  const startY = shapeStartRef.current.y;
+
+  const endX = mouseX;
+  const endY = mouseY;
+
+  const centerX = (startX + endX) / 2;
+  const centerY = (startY + endY) / 2;
+
+  const rx = Math.abs(endX - startX) / 2;
+  const ry = Math.abs(endY - startY) / 2;
+
+  newShape.x = centerX;
+  newShape.y = centerY;
+  newShape.rx = rx;
+  newShape.ry = ry;
+  newShape.circleRadius = Math.max(rx / 0.7, ry / 0.4); // keep existing ratio logic
 }
-  
+
 
   setDrawnShape(newShape);
   //drawCanvas(); // ensure your canvas is redrawn
@@ -1182,6 +1216,8 @@ if (!resizeHandle) {
     circleRadius,
   });
 }
+   
+
 }
 
           }
@@ -1379,6 +1415,7 @@ if (!resizeHandle) {
     ctx.fill()
 
   };
+
   
 
   
@@ -1416,8 +1453,9 @@ if (!resizeHandle) {
         className="canvas-container"
         width={canvasWidth}
         height={canvasHeight} 
-        onClick={handleClick}
+        onClick={handleClick}  //commented for floodfill
         style={{ pointerEvents: 'auto', zIndex: 2 }}//my
+        //onClick={combinedCanvasClick} //for floodfill
       ></canvas>
     </div>
   );
